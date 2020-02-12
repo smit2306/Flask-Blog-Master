@@ -2,17 +2,17 @@
 1. Why generate a secret token?
 2. Using itsdangerous module to generate time sensitive tokens for password reset links: Some basic commands
 3. Modifying User model in models.py to generate these tokens and retrieve info from generated tokens.
-4.
-5.
-6.
-7.
-8.
-9.
-10.
-
-COMMANDS:-
+4. Creating RequestResetForm and ResetPasswordForm in forms.py
+5. Creating reset_request route in routes.py
+6. Creating reset_request.html template
+7. Creating the reset_token route. The route that will actually reset the password.
+8. Creating the reset_token.html template.
+9. Modifying the reset_request route.
+10. Implementing send_reset_email function to send emails to users.
+11. Modifying reset_token method to actually save the password in the database
+12. Linking the reset_request route to 'forgot password?' link in login.html template
 ========================================================================================================================
-1.
+1. Why generate a secret token?
 
 Read Email confirmation section from
 https://exploreflask.com/en/latest/users.html
@@ -103,7 +103,7 @@ Hence we use try catch block. If we are wable to fetch the user_id from payload,
 the User object using User.query.get(user_id) else we will return None.
 
 ========================================================================================================================
-4.
+4. Creating RequestResetForm and ResetPasswordForm in forms.py
 
 We now have a way to generate and validate tokens. Let's create route for Users to reset their
 passwords.
@@ -300,21 +300,33 @@ If you did not make this request, simply ignore this email and no changes will b
     d. To send the message we use 'mail.send(msg)'
 
 ========================================================================================================================
+11. Modifying reset_token method to actually save the password in the database
 
+COMMANDS:-
+@app.route(/reset_password/<token>, methods=['GET', 'POST'])
+def reset_token(token):
+    if current_user.is_authenticated:
+        return redirect(url_for('home'))
+    user = User.verify_reset_token(token)
+    if user is None:
+        flash('Invalid or expired token', 'warning')
+        return redirect(url_for('reset_request'))
+    form = ResetPasswordForm()
+    if form.validate_on_submit(): --> CHECK THIS LINE
+        hashed_pw = bcrypt.generate_password_hash(form.password.data) --> CHECK THIS LINE
+        user.password = hashed_pw --> CHECK THIS LINE
+        db.session.commit() --> CHECK THIS LINE
+        flash('Your password has been updated.', 'success') --> CHECK THIS LINE
+        return redirect(url_for('login')) --> CHECK THIS LINE
+    return render_template('reset_token.html', title='Reset Password', form=form)
 
+The add the logic to save the password if the form validates on submit.
+Once the form validates on submit, we hash the passowrd and update the 'user.password'
+and commit to database. After this we will redirect the user to 'login' page.
 ========================================================================================================================
+12. Linking the reset_request route to 'forgot password?' link in login.html template
 
-
-========================================================================================================================
-
-
-========================================================================================================================
-
-
-========================================================================================================================
-
-
-========================================================================================================================
-
+In the forgot password anchor tag in the login.html template, we change the href from # to
+'url_for('reset_request')'.
 
 ========================================================================================================================
