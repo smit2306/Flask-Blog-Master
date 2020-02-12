@@ -1,0 +1,484 @@
+========================================================================================================================
+IN THIS VID:
+1. Create a Flask Form using flask_wtf and wtforms
+2. Adding fields to RegistrationForm class
+3. Adding fields to LoginForm class
+4. Create routes for the above forms in flaskblog.py
+5. Creating registration.html: 6 steps
+6. Adding Get and post method to our registration route
+7. How to check form is validated correctly and what is flash message
+8. Modifying our 'layout.html' file to show flash messages
+9. Redirecting users to Home page if account is successfully created.
+10. Providing feedback to user if they input incorrect values. - Modify 'register.html'
+11. Creating 'login.html'
+12. Adding get and post method to our login route and simulate login.
+13. Some changes to layout.html file
+
+COMMANDS:-
+========================================================================================================================
+To create forms using python
+COMMANDS:-
+pip install flask-wtf
+
+Most popular extension for working with forms using flask is wtforms. We will use that to create our
+registration form.
+
+We will be writing python classes that are representative of our forms and then they will automatically be
+converted into our html template
+========================================================================================================================
+CREATE REGISTRATION FORM
+
+COMMANDS:-
+from flask_wtf import FlaskForm
+
+We will name our class 'RFORM ' to create registration form and inherit from the FlaskForm
+
+Within our form, we will have many form FIELDS. These FIELDS will also be imported classes.
+========================================================================================================================
+ADDING FIELDS TO OUR FORM
+
+Let's say our first field will be username..which is a string field.
+This will be imported from wtforms package
+
+COMMANDS:-
+from wtforms import StringField
+========================================================================================================================
+ADDING FIELDS TO OUR RegistrationForm:
+
+1. StringField for username. The 'Username' passed to the StringField class will be LABEL name
+in our html page.
+Username field also contains some validations such as it should not be empty and must be between
+2 to 20 chars in length. This achieved by adding validators to the field.
+'validators' argument is a list of validator objects
+
+COMMANDS:-
+from wtforms.validators import DataRequired, Length, Email
+username = StringField('Username', validators=[DataRequired(), Length(min=2, max=20)]
+
+DataRequired --> field cannot be empty
+Length --> Specify a length requirement for the field
+Email --> Check for a valid email id
+
+2. StringField for email. validators = Email(), DataRequired()
+COMMANDS:-
+email = StringField('Email', validators=[Email(), DataRequired()]
+
+3. PasswordField for entering password. This field is different from string field.
+validators: data required.
+
+COMMANDS:-
+from wtforms import PasswordField
+password = PasswordField('Password', validators=[DataRequired()]
+
+IMPORTANT:-
+4. Confirm password field. This is password field. However, it requires an additional
+validator to check that it is actually equal to password field.
+To check that, we use the 'EqualTo' validator which takes in the name of the field
+which is used for comparing.
+Here we need to compare 'password' field (DO NOT USE THE LABEL name 'Password', use the VARIABLE
+NAME i.e 'password')
+
+COMMANDS:-
+confirm_password = PasswordField('Confirm Password',
+                                     validators=[DataRequired(), EqualTo('password')])
+
+5. A submit button. This created using the SubmitField.
+
+COMMANDS:-
+from wtforms import SubmitField
+submit = SubmitField('Sign Up')
+
+========================================================================================================================
+ADDING FIELDS TO OUR LoginForm:
+
+1. StringField for email. validators = Email(), DataRequired()
+COMMANDS:-
+email = StringField('Email', validators=[Email(), DataRequired()]
+
+2. PasswordField for entering password. This field is different from string field.
+validators: data required.
+
+COMMANDS:-
+from wtforms import PasswordField
+password = PasswordField('Password', validators=[DataRequired()]
+
+3. A submit button. This created using the SubmitField.
+
+COMMANDS:-
+from wtforms import SubmitField
+submit = SubmitField('Login')
+
+4. REMEMBER ME button:
+This is a BooleanField and it is used to keep a user logged in for sometime after closing the
+web page. For this we use a secret key.
+This secret key will prevent from modifying cookies and cross site request forgeries.
+
+secret key is generated using the secrets module in python
+COMMANDS:-
+
+import secrets
+secrets.token_hex(16) # 16 here is number of bytes.
+
+in our flaskblog.py
+
+COMMANDS:-
+app.config = 'THAT GENERATED SECRET KEY'
+========================================================================================================================
+CREATING ROUTES FOR ABOVE PAGES IN flaskblog.py
+
+We add two new methods, registration and login with routes /register
+and /login to our code.
+
+COMMANDS:-
+from forms import RegistrationForm, LoginForm
+@app.route('/register')
+def register():
+    form = RegistrationForm()
+    return render_template('registration.html', title='Register', form=form)
+
+We pass 'registration.html' as the html template name. We will create it later on.
+In the above code, we pass INSTANCE OF class RegistrationForm to HTML VAR 'form'
+In our html code, we can now access attributes of the class RegistrationForm using
+form.username, form.email, form.password etc..
+
+Same is the case with LoginForm.
+========================================================================================================================
+CREATING REGISTRATION FORM:
+STEP 1:
+First we add the same code as that in the about.html page.
+We override whats in the block content
+
+COMMANDS:-
+{% extends 'layout.html'%}
+{%block content%}
+'OUR NEW CODE WILL GO HERE'
+{%endblock%}
+
+========================================================================================================================
+STEP 2: ADDING FORM TAGS IN THE BLOCK CONTENT
+
+COMMANDS:-
+<div class="content-section">
+    <form class="content-section" method="POST" action="">
+        {{ form.hidden_tag() }}
+    </form>
+</div>
+
+
+We add div tag first and then add form inside it.
+IMPORTANT:-
+the class="some class" string inside every tag refers either to a styling class in our
+main.css file or class from bootstrap. That is just to make our UI look nicer.
+To add more than one styling classes to a tag, syntax is class="class1 class2"
+
+We also add method='POST' and action=''
+method post allows us to send the data from the form
+action as blank is to just stay at the same page and send the to the same page.
+we are not updating any resource with the action.
+
+
+We also add {{ form.hidden_tag() }} as first thing in the form.
+This actually is part of protection that prevents from CSRF attacks.
+We don't need to worry much about how it works but it is required at first in the form.
+========================================================================================================================
+STEP 3: CREATING A FIELDSET FOR ADDING FIELDS IN THE Registration Form.
+
+Inside the form tags..add the below code for creating a FIELDSET.
+Fields will be then added using the div tags inside the fieldset tag
+COMMANDS:-
+<fieldset>
+    <div>Field 1</div>
+    <div>Field 2</div>
+    <div>Field 2</div>
+</fieldset>
+
+========================================================================================================================
+STEP 4: ADDING FIELDS IN THE Registration Form.
+
+Inside the fieldset tags, we add div tags to create various form fields.
+We passed an instance of RegistrationForm class in the variable form to the
+render_template function.
+We will use the attributes of that instance like username, password, confirm_password and
+submit here.
+
+COMMANDS:-
+<fieldset class="form-group">
+    <legend class="border-bottom mb-4">Join Today</legend>
+    <div class="form-group">
+        {{ form.username.label(class="form-control-label") }}
+        {{ form.username(class="form-control form-control-lg") }}
+    </div>
+</fieldset>
+
+The legend tag is the Title to the form.
+The div tags contain 2 things:-
+
+    1. LABEL:= form.username.label returns the label string we passed to
+    StringField. We add class='some class' in round braces for styling.
+    And as it is a variable, it must be accessed using {{ }}
+    hence {{ form.username.label(class="some-class") }}
+
+    2.FIELD for entering values:=
+    The field can be added using the form.username. We add styling inside the {{}} braces
+    by adding round braces
+    hence {{ form.username(class="some class")}}
+
+We add email, password and confirm password using the same way.
+========================================================================================================================
+STEP 5: ADDING SUBMIT BUTTON
+A submit button is another div and accessing form.submit inside it.
+This button however lies outside of the fieldset tag but within the form tag.
+
+COMMANDS:-
+
+<div class="">
+    {{ form.submit(clas="") }}
+</div>
+
+========================================================================================================================
+STEP 6: ADDING 'Already have an account' below our Registration form.
+
+Outside the div tag that contains our form, we add another div tag.
+
+COMMANDS:-
+
+<div class="border-top pt-3">
+    <small class="text-muted">
+        Already have an account? <a class="ml-2" href="{{ url_for('login') }}">Sign In</a>
+    </small>
+</div>
+
+the anchor tag <a> has 'href' argument that takes a link.
+Once somebody clicks on the already have an account, we should redirect them to login page.
+Hence anchor tag will contain link to login.html page.
+
+IMPORTANT:-
+Whenever we require links, we use the url_for function to find that for us.
+
+If you see the href arg, it says url_for('login')
+This string 'login' REFERS TO def login FUNCTION...NOT 'login.html' file.
+
+========================================================================================================================
+ADDING GET AND POST METHOD TO '/register' route
+
+COMMANDS:-
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    form = RegistrationForm()
+    return render_template('register.html', form=form)
+
+The post method will allow the route to accept the data from thr form.
+
+========================================================================================================================
+How to check form is validated correctly and what is flash message:
+
+We use the method validate_on_submit of our form instance. (Inherited from FlaskForm)
+If the form is validated successfully, we want to display a message that user is created
+successfully. We achieve this using the flash function in tha flask module
+
+COMMANDS:-
+from flask import flash
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    form = RegistrationForm()
+    if form.validation_on_submit():
+        flash(f'User created successfully for {form.username.data}', category='some class')
+    return render_template('register.html', form=form)
+
+
+As you can see in the code, the function 'flash' takes in two arguments:
+1. A message to displayed. The data in the fields added to form can be found by
+for.field_name.data, here it is form.username.data
+2. CATEGORY: This is class of bootstrap for styling. We use 'success'. This gives a
+nice green box when user is successfully created.
+
+========================================================================================================================
+Modifying our 'layout.html' file to show flash messages:
+
+We added code to flaskblog.py file above to show flash message, however we still haven't
+updated our layout.html file to display those messages.
+
+We want to display flash message first thing in the body tag. We add below code just above our
+{% block content %} {% endblock %}
+
+COMMANDS:-
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {%if messages%}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">
+                {{ message }}
+            </div>
+        {%endfor%}
+    {%endif%}
+{% endwith %}
+
+As you can see in the code, the first thing we do to get the flash messages is use
+'get_flashed_messages(with_categories=true)'
+The 'with_categories=true' allows to get messages of bootstrap class 'success' that we passed
+to the 'flash' function.
+I am not sure why we use 'with' code block but I suppose we consider this 'messages' variable
+as a file.
+
+once we get the 'messages', we use 'if' condition to check if there are any messages.
+If present, we loop through all of them using a 'for' loop and print each of those
+messages in a div tag.
+The message actually comes with a category. hence we use that class
+for styling and print message using {{ message }} in a div tag.
+
+OVERALL THIS IS MOD 7 - seventh modification in layout.html file
+========================================================================================================================
+ADDING A redirect to OUR REGISTRATION PAGE.
+
+If user is successfully created, we want to redirect him to the home page.
+for this we use redirect function in flask
+
+COMMANDS:-
+from flask import redirect
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        flash(f'{form.username.data}', 'success')
+        return redirect(url_for('home'))
+
+The 'home' string in the url_for function is for the function def home, not 'home.html'
+========================================================================================================================
+10. Providing feedback to user if they input incorrect values. - Modify 'register.html'
+
+We need to highlight our INPUT FIELD IN RED and DISPLAY AN ERROR MESSAGE if user
+inputs incorrect values.
+We achieve this by modifying the 'register.html' file.
+Inside the fieldset tag, earlier, we added our div tags for each field.
+Inside THOSE DIV TAGS   , WE ADD BELOW LOGIC
+
+COMMANDS:-
+<div class="form-group">
+    {{ form.username.label(class="form-control-label") }}
+
+    <!-- start This is our new code -->
+    {% if form.username.errors %}
+        {{ form.username(class="form-control form-control-lg is-invalid") }}
+        <div class="invalid-feedback">
+            {% for error in for.username.errors %}
+                <span> {{ error }}</span>
+            {% endfor %}
+        </div>
+    {% else %}
+        {{ form.username(class="form-control form-control-lg") }}
+    {% endif %}
+    <!-- end This is our new code -->
+
+</div>
+
+LOGIC:
+1. We keep the label as is.
+
+2. After label, we check if username field has any errors,
+This is done by 'form.username.errors' in the if code block.
+
+3. If there are any errors, we change the formatting of the FIELD by adding
+a bootstrap class 'is-invalid' to the class in form field, hence
+{{ for.username(class="old classes and is-invalid")}}
+This achieves the red highlighting part of input field
+
+4. We also want to display the message. Hence we add a different div tag and
+loop through the messages and print them.
+The class of that div is 'invalid-feedback'. Hence the code
+<div class="invalid-feedback">
+    {% for error in for.username.errors %}
+        <span> {{ error }}</span>
+    {% endfor %}
+</div>
+
+5. If there are no error messages, we keep the field as is (using else) and end the if block.
+{{ form.username(class="form-control form-control-lg")}}
+
+Repeat the same thing for all fields in the form.
+========================================================================================================================
+Creating 'login.html'
+
+We copy the complete code from register.html and make some minor changes.
+
+1. Remove the field for username and confirm password
+2. Change the value in 'legend' tag from 'Sign Up' to 'Log In'
+3. We add a new field to the form 'Remember Me' check box
+This is slightly different from the other fields
+
+We add the below code in the fieldset tag of the form. The styling classes are different.
+COMMANDS:-
+<div class="form-check">
+    {{ form.remember(class="form-check-input") }}
+    {{ form.remember.label(class="form-check-label") }}
+</div>
+
+4. We add a 'Forgot Password' link in the form tag but outside the fieldset tag.
+COMMANDS:-
+<small class="text-muted ml-2">
+    <a href="#">Forgot Password?</a>
+</small>
+
+The href="#" creates a dummy link.
+
+5. The 'Already have an account, Log In' is changed to 'need an account'.
+The redirect now points to 'def register' function not login.
+url_for('register')
+
+========================================================================================================================
+Adding get and post method to our login route and simulate login.
+
+We make some changes to the def login to accept data from the login form.
+
+COMMANDS:-
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    form = LoginForm()
+    if form.validate_on_submit():
+        if form.email.data == 'admin@blog.com' and form.password.data == 'password':
+            flash(f'You have logged in!', 'success')
+            return redirect(url_for('home'))
+        else:
+            flash('Login Unsuccessful', 'danger')
+    return render_template('login.html', title='Login', form=form)
+
+1. We add GET and POST methods to the @app.route decorator
+2. To simulate login, we check email and password against static values of
+'admin@blog.com'  and 'password'
+
+If true then we print a flash message with bootstrap class 'success' - this displays message in
+green and 'REDIRECT' user to home page. Hence 'return redirect(url_for('home'))'
+
+If False, print a flash message with bootstrap class 'danger' - this displays message in
+red and the user is not redirected.
+
+========================================================================================================================
+Some changes to layout.html file
+
+The old naviation bar, right below the body tag uses direct links to routes.
+if you see href argument, they are the same routes we pass to the app.route decorator.
+This not a good practice.
+
+We always use url_for function to get links
+
+OLD CODE:-
+<div class="navbar-nav mr-auto">
+        <a class="nav-item nav-link" href="/">Home</a>
+        <a class="nav-item nav-link" href="/about">About</a>
+    </div>
+    <!-- Navbar Right Side -->
+    <div class="navbar-nav">
+        <a class="nav-item nav-link" href="/login">Login</a>
+        <a class="nav-item nav-link" href="/register">Register</a>
+
+NEW CODE:-
+<div class="navbar-nav mr-auto">
+        <a class="nav-item nav-link" href="{{ url_for('home') }}">Home</a>
+        <a class="nav-item nav-link" href="/about">{{ url_for('about') }}</a>
+    </div>
+    <!-- Navbar Right Side -->
+    <div class="navbar-nav">
+        <a class="nav-item nav-link" href="{{ url_for('login') }}">Login</a>
+        <a class="nav-item nav-link" href="{{ url_for('register') }}">Register</a>
+
+OVERALL THIS IS MOD 8 - eighth modification in layout.html file

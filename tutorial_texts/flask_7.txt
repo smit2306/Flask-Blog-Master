@@ -1,0 +1,258 @@
+========================================================================================================================
+
+1. Update account.html file
+2. Display account picture.
+3. Create UpdateAccountInfo form in forms.py
+4. Adding validations to UpdateAccountInfo form in forms.py
+5. Create account.html template
+6. Modifying account route to incorporate feature 3 and 4 above.
+7. Adding functionality to update picture in UpdateAccountForm in forms.py Adding 'FileField'.
+8. Modifying account.html to have choose file type of field.
+9. Adding a save_picture function to 'routes.py' for uploading a profile picture.
+10. Modifying account route to update profile picture.
+
+COMMANDS:-
+========================================================================================================================
+1. Update account.html file
+
+Copy the account.html from snippets folder and place it inside the content block. Replace our old code.
+We wnt our account page to show current user's username and email and display picture.
+Hence in the 'div class media' tag, we use current_user.username and current_user.email.
+
+========================================================================================================================
+2. Display account picture
+
+We create a 'profile_pics' folder inside the static folder of our package. That folder will contain
+profile pictures of users. By default, if we check our 'class User' in 'models.py', the value of image
+file is 'default.jpg'. So we place a default.jpg picture in the profile pics folder.
+
+in the 'img class' tag in account.html file, in 'src' we need to pass a varibale calle image_file that
+changes as per the user.
+
+COMMANDS:- in account route
+
+def account():
+    image_file = url_for('static', filename=f'profile_pics/{current_user.image_file})
+    return render_template('account.html', title='Account Page', image_file=image_file)
+
+========================================================================================================================
+3. Create UpdateAccountInfo form in forms.py
+
+A user should be able to update his username and email address. To add above functionalty we need to
+have a template 'account.html' (we create that below) that contains a form user can fill.
+
+We create a form 'UpdateAccountInfo' in 'forms.py' file that contains username, email and a submit
+button.
+
+========================================================================================================================
+4. Adding validations to UpdateAccountInfo form in forms.py
+
+Our user could submit the form without changing his current username or email id. That would and
+should still be valid. --> IMPORTANT.
+
+If we use the validation methods from LoginForm and RegistrationForm, it will throw an error.
+As the name and email will already be present in database, the query 'user=User.query.filter_by()'
+will not be empty.
+
+We would like to run this validation on username and email id only if the details entered by the user is
+different from current username and email id.
+
+We can use 'current_user' form flask_login to achive this.
+
+COMMANDS:-
+
+from flask_login import current_user
+
+class UpdateAccountForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(min=2, max=20)])
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    submit = SubmitField('Update')
+
+    def validate_username(self, username):
+        if username.data != current_user.username: ---> CHECK THIS LINE
+            user = User.query.filter_by(username=username.data).first()
+            if user:
+                raise ValidationError()
+
+    def validate_email(self, email):
+        if email.data != current_user.email: ---> CHECK THIS LINE
+            user = User.query.filter_by(email=email.data).first()
+            if user:
+                raise ValidationError()
+
+
+========================================================================================================================
+5. Create account.html template
+
+The account.html template is very similar to register.html template. In the 'form here' comment in
+corey's code of account snippet, we copy the code from register.html file and copy the code from register
+html file. Copy the complete <form> tag.
+
+========================================================================================================================
+6. Modifying account route to incorporate feature 3 and 4 above.
+
+COMMANDS:-
+
+@login_required
+@app.route('/account', methods=['GET', 'POST'])
+def account():
+
+    form = UpdateAccountForm()
+    if form.validate_on_submit():
+        current_user.username = form.username.data --> CHECK THIS LINE
+        current_user.email = form.email.data --> CHECK THIS LINE
+        db.session.commit() --> CHECK THIS LINE
+        return redirect(url_for('account.html')) --> CHECK THIS LINE --> IMPORTANT
+
+    elif request.method == 'GET':
+        form.username.data = current_user.username
+        form.email.data = current_user.email
+
+    image_file = url_for('static', filename=f'profile_pics/{current_user.image_file}')
+    return render_template('account.html', title='Account Page', image_file=image_file, form=form)
+
+1. We create an instance of UpdateAccountForm
+2. If form validates on submit, we need to update those details in database.
+We can change the attributes of 'current_user' and use 'db.session.commit()' to commit those changes.
+
+3. We then redirect the user to the same 'account' page.
+IMPORTANT:-
+WHY DID WE USE redirect('account')? CANT WE JUST LET THE EXECUTION FALL TO render_template()?
+It's because of 'POST-GET-REDIRECT' pattern followed by websites.
+
+Sometimes when we reload the page after submitting a form, we get a pop-up saying that
+'Are you sure you want to submit the form again?'
+
+We do not do two post requests one after the other. Hence we use redirect.
+A redirect would place a 'get' request between consecutive posts requests.
+
+4. We want to display the current username and email of the user in the form. So whenever there is a
+'GET' request, we just populate the form with current user's details. We can use 'form.username.data'
+and 'form.email.data' to display the details.
+
+SIGNIFICANCE OF ABOVE REDIRECT:
+Since we are redirecting the user after he updates the details, there will be get request and
+hence updated username and email will be displayed in the form.
+
+========================================================================================================================
+7. Adding functionality to update picture in UpdateAccountForm in forms.py
+
+We need to a file field that can upload files.
+
+COMMANDS:-
+from flask_wtf.file import FileField, FileAllowed
+
+# in class UpdateAccountForm
+
+picture = FileField('Update Profile Picture', validators=[FileAllowed(['jpg', 'png'])])
+
+1. We import FileField and FileAllowed from flask_wtf.file
+2. FileField is the field like any other and FileAllowed is the validator that takes in a
+list of allowed file types.
+
+========================================================================================================================
+8. Modifying account.html
+
+We add a div tag for this picture field we create in UpdateAcountForm. This dic tag lies in the fieldset tag.
+
+
+COMMANDS:-
+
+<div class="form-group">
+    {{ form.picture.label() }}
+    {{ form.picture(class="form-control-file") }}
+    {% if form.picture.errors %}
+      {% for error in form.picture.errors %}
+        <span class="text-danger">{{ error }}</span></br>
+      {% endfor %}
+    {% endif %}
+</div>
+
+
+We also add enctype='multipart/form-data' to form tag.
+This is required for correct display of error messages. No need to go in much detail.
+COMMANDS:-
+<form method="POST" action="" enctype="multipart/form-data">
+========================================================================================================================
+9. Adding a save_picture function to 'routes.py' for uploading a profile picture.
+
+The uploading part of profile picture would be there in the accounts route, however there are a few steps
+that we need to perform everytime user uploads a profile picture. For that, we createa function 'save_picture'
+
+We need to do the following:
+1. A user might upload a image with any file name, same file names will mess up system.
+To avoid this, we use a random hash generator and rename the image with that file name. That will make sure
+that we do not have image with same file names.
+
+2. We need to save image with the same file extension.
+
+3. A user might also upload an image for very high resolution. Whenever the account page is loaded, more data
+needs to be transferred to view the profile picture. Hence we change the resolution of image to 125 x 125 and then
+save to the 'static/profile_pics' folder.
+
+COMMANDS:-
+
+import os
+import secrets
+
+def save_picture(form_picture):
+    random_hex = secrets.token_hex(8)
+    _, f_ext = os.path.splitext(form_picture.data.filename)
+    picture_fn = random_hex + f_ext
+    picture_path = os.path.join(app.root_path, 'static/profile_pics', picture_fn)
+
+    output_size = (125, 125)
+    i = Image.open(form_picture)
+    i.thumbnail(output_size)
+    i.save(picture_path)
+
+    return picture_fn
+
+1. In save_picture function, we pass 'form.picture.data'. The function
+    a. Generates a 'random_hex' token using the secrets module's token_hex method. The size of hex is 8 bytes.
+        We will use this as our picture file name.
+
+    b. Separates the extension from the input picture using os.path.splitext(). It returns file name and
+        its extension. We do not need the file name hence the "_".
+
+    c. We store our profile pictures in the static/profile_pics folder. The 'app.root_path' provides a
+        path till our 'flaskblog' module. Hence we just join the paths using os.path.join
+
+    d. We use the PIL.Image to resize the image. The size we want is 125 x 125 pixels. We acheive this
+        using 'i.thumbnail(output_size)'. To save that image we use i.save(picture_path). We just created
+        path above.
+
+    e. We store the filename of the image in the database. Hence we need to return the filename.
+========================================================================================================================
+10. Modifying account route to update profile picture.
+
+COMMANDS:-
+#in def account
+
+@login_required
+@app.route('/account')
+def account():
+    form = UpdateAccountForm()
+    if form.validate_on_submit():
+
+        if form.picture.data:
+            current_user.image_file = save_picture(form.picture.data)
+
+        current_user.username = form.username.data
+        current_user.email = form.email.data
+        db.session.commit()
+        flash('Your account details have been updated!')
+
+    elif request.method == 'GET':
+        form.username.data = current_user.username
+        form.email.data = current_user.email
+
+    image_file = url_for('static', filename=f'profile_pics/{ current_user.image_file }')
+    return render_template('account.html', title='Account Page', image_file=image_file, form=form)
+
+
+In account function:
+    a. We add a new conditional to check whether the form.picture actually contains any data, If yes,
+        we pass it to the 'save_picture' function above and get the new image filename for the
+        user. We just use 'current_user.image_file = ' to update the user's image filename in db.
+========================================================================================================================

@@ -1,0 +1,495 @@
+========================================================================================================================
+
+1. Install flask-bcrypt for hashing passwords
+2. flask-bcrpyt basic commands.
+3. Modify our package's __init__.py file to import flask bcrypt and create an instance of Bcrypt class.
+4. Modify our register route in 'routes.py' file to create a user in database
+5. Confirming that a user is created in the database.
+6. What's wrong with our current code?
+
+7. Adding custom validation in forms.py file in RegistrationForm
+8. Installing flask-login extension/package for better login management system
+9. 'Log in' a user - 4 steps
+10. Check if a user is already logged in.
+11. Create a log out route.
+12. Modify layout.html to display logout instead of Login and Register when user is logged in.
+13. Create a account route.
+14. Problem with our account route.
+15. Using @login_required decorator from flask_login solve above problem. 2 steps.
+16. Some observations related to the above account route.
+17. Using 'request' object from flask to achieve above functionality
+
+COMMANDS:-
+========================================================================================================================
+1. Install flask-bcrypt for generating hashed passwords.
+
+To generate a hashed version of a string, password in our case, we use Bcrypt hashing algorithm.
+Flask has an extension named 'flask-bcrypt' which makes this process easier.
+
+COMMANDS:-
+pipenv install flask-bcrypt
+========================================================================================================================
+2. Some basic commands of flask-bcrypt
+
+COMMANDS:-
+from flask_bcrypt import Bcrypt
+bcrypt = Bcrypt()
+bcrypt.generate_password_hash('testing')
+
+# output of above line
+b'$2b$12$vSUw8B1/9JlcoggMjrFeSOp.HGUetWeBQnPsAzxBFCWbtt2g6OkjW'
+
+bcrypt.generate_password_hash('testing').decode('utf-8')
+
+# output of above line
+'$2b$12$lNwwdePT17mSaiOWKB8aHeDUETtz5bo89beOIKawcdNMuY2A14/Ua'
+
+
+1. Import 'Bcrypt' and create an instance of it.
+
+2. Generate hashed strings - 'BYTE' type hash and 'STRING' type
+To generate hashed version of a string, we use 'generate_password_hash()' function.
+The function takes a string as an input and returns a 'BYTE' type.
+To get output as STRING, we use "bcrypt.generate_password_hash('testing').decode('utf-8')"
+.decode('utf-8') at the end.
+
+3. If you run bcrypt.generate_password_hash('testing').decode('utf-8')
+every time, you get different hash for the same password.
+So how we check a password against a hash that is different everytime?
+
+we use bcrypt.check_password_hash(hashed_pw, 'password') function.
+We save a hashed password in a variable and pass that as an argument to the function.
+Use the below code to check.
+
+COMMANDS:-
+hashed_pw = bcrypt.generate_password_hash('testing').decode('utf-8')
+bcrypt.check_password_hash(hashed_pw, 'password') --> returns false
+
+bcrypt.check_password_hash(hashed_pw, 'testing') --> returns True
+
+========================================================================================================================
+3. Modify our package's __init__.py file to import flask bcrypt and create an instance of Bcrypt class.
+
+We will store hashed passwords in our database. To convert those to hash, we need Bcrypt() class.
+We do this in our package's init file so any module can use it.
+
+In our packages __init__.py file, add the below code.
+
+COMMANDS:-
+from flask_bcrypt import Bcrypt
+bcrypt = Bcrypt(app)
+
+IMPORTANT:
+The 'Bcrypt' class takes in flask app as the argument.
+
+
+========================================================================================================================
+4. Modify our register route in 'routes.py' file to create a user in database
+
+Once the form validates successfully, we want to create a 'User' and store it in our database.
+We import the bcrypt we created in our init file and use that.
+We add following imports to our routes.py file
+
+COMMANDS:-
+from flaskblog import db, bcrypt
+
+We change the register route to following:
+
+COMMANDS:-
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        hashed_pw = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
+        user = User(username=form.username.data, email=form.email.data, password=hashed_pw)
+        db.session.add(user)
+        db.session.commit()
+        flash(f'User successfully created! You can now log in.', 'success')
+        return redirect(url_for('login'))
+    return render_template('register.html', title='Register', form=form)
+
+1. We check if the form is validated correctly, if yes, we hash the password using the
+'generate_password_hash' now available with 'bcrypt'.
+2. The data in any field in a form can be accessed by form.fieldname.data, in our case it is
+'form.password.data'
+3. Add the user to database, commit.
+4. Change the text in flash message.
+5. Redirect to "LOGIN" page instead of home page.
+
+Running the app now and registering will now add a User to the database.
+
+========================================================================================================================
+5. Confirming that a user is created in the database.
+
+Go to python and use the following to check if the user is added or not
+
+COMMANDS:-
+
+>>> from flaskblog import db
+>>> from flaskblog.models import User
+>>> user = User.query.first()
+>>> user
+output: ----> User('smit', 'smit@gmail.com', 'default.jpg')
+
+The first line import db instantiates the database.
+We then import the User model from flaskblog.models and run a query.
+
+If you type user.password we will get a hashed version of password
+
+========================================================================================================================
+6. What's wrong with our current code?
+
+Currently we only validate our form and then create a User.
+Suppose I enter the same values the second time in our register page, It will throw an error.
+Because we have set 'unique=True' in our email and username fields, database wont allow to have a
+duplicate entry. Hence the error.
+It will throw an sqlalchemy integrity error
+
+Our first instinct is to add some checks in 'def register' before committing to database. But it is
+not a good way to do it. We should validate such thing in the 'forms.py' file.
+
+The advantage of putting such validation in forms file is that we can throw an error and this
+error message will be handled like any other error and shown in red to the user. We would
+be able to give visual feedback to the user.
+
+This kind of validation should have been there at a form level.
+========================================================================================================================
+7. Adding validation to Registration form that checks if the user is already present in database or not.
+
+To add such a validation, we can use below syntax:
+
+SYNTAX:-
+from wtforms.validators import ValidationError
+
+def validate_FIELD(self, FIELD_VARIABLE):
+    if SOME_CONDITION:
+        raise ValidationError ('The field has some error')
+
+The error raised by this captured by forms.FIELD_NAME.errors in our html code and then
+styled by bootstrap class.
+We need to import the 'ValidationError' from 'wtforms.validators'
+
+Add the below code the class RegistrationForm:
+
+def validate_username(self, username):
+    user = User.query.filter_by(username=username.data).first()
+    if user:
+        raise ValidationError('Username already exists in the database. Please choose a different one.')
+
+========================================================================================================================
+8. Installing flask-login extension/package for better login management system
+
+COMMANDS:-
+pipenv install flask-login
+========================================================================================================================
+9. 'Log in' a user
+
+To log in a user we use the LoginManager class from flask-login  package. This will take care of
+managing all the sessions in background for us. We dont need to worry about that.
+
+-----------------------------------
+STEP 1: Import LoginManager in '__init__.py' file of our package and pass 'app' to its instance,
+just like we passed to SQLAlchemy and Bcrypt app.
+Add the below code to the '__init__.py' file
+
+COMMANDS:-
+from flask_login import LoginManager
+login_manager = LoginManager(app)
+
+-----------------------------------
+STEP 2:
+We now need to create a user loader function in 'models.py' with a decorator. This is for reloading the user from
+user id stored in the session.
+NOTE:-This code you can grab from the documentation..no need to remember it. This is something
+you need to put in place for flask-login extension to work. Because the extension needs to know
+how to find users by Id.
+
+COMMANDS:-
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+First we create a function that takes user_id as an argument and then returns the user.
+We use User.query.get() function to get the user by user_id
+
+We then decorate the function with 'login_manager.user_loader'.
+
+-----------------------------------
+STEP 3: add 'UserMixin' class to inheritance of class User and class Post
+
+Now this flask-login extension will expect our 'class User' to have certain attributes and methods,
+Those attributes are:
+1. is_authenticated
+2. is_active
+3. is_anonymous
+3. get_id
+
+We could manually add these to our classes, but this is so common process tha flask-login
+package provides us with a class that we can simply inherit and these attributes will be inherited.
+That class is called UserMixin
+
+COMMANDS:-
+
+from flask_login import UserMixin
+
+# class User and Post should look like below
+class User(db.Model, UserMixin):
+    # class User's code
+
+class Post(db.Model, UserMixin):
+    # class Post's code
+
+STEP 4: Log the user in!!
+We are done with modifications in our models.py file. Let's go the login route in
+our routes.py file
+
+To log in, we want to check a few things first,
+1. checking if the email exists in our database
+2. check the password hashed in our database matches the entered password,
+If yes, we will log in the User. For conditoins 1 and 2 , we use the 'User.query.filter_by'
+and 'bcrypt.check_password_hash()' functions.
+
+To LOG IN THE USER, WE NEED TO IMPORT 'login_user' function from flask-login module.
+The login_user function takes two arguments
+1. user - object of class User that we get by email_id
+2. remember - a boolean value that we can get from remember_me checkbox of the form.
+
+COMMANDS:-
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first() -----> CHECK THIS
+        if user and bcrypt.check_password_hash(user.password, form.password.data): -----> CHECK THIS
+            login_user(user, remember=form.remember.data) -----> CHECK THIS
+            return redirect(url_for('home')) -----> CHECK THIS
+        else:
+            flash('Login Unsuccessful', 'danger')
+    return render_template('login.html', title='Login', form=form)
+
+Once we log in the user, we redirect him back to home page.
+========================================================================================================================
+10. Check if a user is already logged in.
+
+If you run the application and log in with the user, it works.
+However, when we click to login or register route, it goes back to login / register page.
+After login, user should not be redirected to login page.
+
+How to check whether user is logged in?
+For this we use 'current_user' from flask-login module
+the 'current_user' object has 'is_authenticated' attribute which returns True or False if the user is
+logged in
+
+COMMANDS:-
+from flask_login import current_user
+
+# we add below code at the start of register and login routes
+if current_user.is_authenticated:
+    return redirect(url_for('home'))
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('home'))
+    form = RegistrationForm()
+    if form.validate_on_submit():
+    # CODE CONTINUED
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('home'))
+    form = LoginForm()
+    if form.validate_on_submit():
+    # CODE CONTINUED
+========================================================================================================================
+11. Log out the user
+
+We used 'login_user' function to log user in
+We used 'current_user'.is_authenticated to check if the user is logged in.
+
+Similarly there is 'logout_user' function in flask-login extension to log user out.
+To logout a user, we dont need to pass any arguments. We just execute the function.
+
+We create a 'logout' route in 'routes.py' file
+
+COMMANDS:-
+
+from flask_login import login_user, current_user, logout_user
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect(usrl_for('home'))
+
+========================================================================================================================
+12. Modify layout.html to display logout instead of Login and Register when user is logged in.
+
+Look for start mod 9: in layout.html file
+We added an if statement to check that user is authenticated and added a logout button.
+COMMANDS:-
+{% if current_user.is_authenticated %}
+    <a class="nav-item nav-link" href="{{ url_for('logout') }}">Logout</a>
+{% else %}
+    <a class="nav-item nav-link" href="{{ url_for('login') }}">Login</a>
+    <a class="nav-item nav-link" href="{{ url_for('register') }}">Register</a>
+{% endif %}
+========================================================================================================================
+13. Create a account route.
+
+In our social media sites, we get an account page after we login, where we can our profile
+picture etc. Let's create a simple account page for now, like our about page.
+
+STEP 1: Add account route to the 'routes.py' file
+
+COMMANDS:-
+
+@app.route('/account')
+def account():
+    return render_template('account.html', title='account page')
+
+STEP 2: Create 'account.html' template
+
+We copy paste the code from our about page. Instead of displaying about page we will
+display the name of the user.
+
+COMMANDS:-
+{% extends "layout.html" %}
+{% block content %}
+<h1> {{ current_user.username }} </h1>
+{% endblock %}
+
+STEP 3: Create a 'Account' button just above 'logout' button we added some steps before in 'layout.html'
+
+<!-- // # start MOD 9: LOGOUT BUTTON flask_6.txt topic 11-->
+{% if current_user.is_authenticated %}
+    <a class="nav-item nav-link" href="{{ url_for('account') }}">Account</a> -----> WE ADDED THIS LINE
+    <a class="nav-item nav-link" href="{{ url_for('logout') }}">Logout</a>
+{% else %}
+    <a class="nav-item nav-link" href="{{ url_for('login') }}">Login</a>
+    <a class="nav-item nav-link" href="{{ url_for('register') }}">Register</a>
+{% endif %}
+<!-- // # end MOD 9: -->
+
+========================================================================================================================
+14. Problem with our account route.
+
+If we login first and then use account button to go the route, username is displayed on the page
+successfully.
+
+However, if you navigate directly to /account page without logging in,
+it goes to the page but doesn't show the user name. Because no user is logged in, 'current_user' variable
+is empty and hence the empty page.
+
+Only logged in users should be allowed to use the account page. To add this functionality
+we use 'login_required' from flask-login
+
+
+========================================================================================================================
+15. Using @login_required decorator from flask_login solve above problem.
+
+Whenever somebody tries to access '/account' route directly and he is not logged in,
+he/she should be redirected to login page.
+'Login' is absolutely REQUIRED for accessing the 'Account' page.
+
+To add functionality, we decorate our account route with 'login_required' decorator
+
+STEP 1:-
+
+COMMANDS:- IN ROUTES.PY FILE
+
+@app.route('/account')
+@login_required ----> CHECK THIS LINE
+def account():
+    return render_template('account.html', title='account_page')
+
+HOW DOES THE login_required DECORATOR KNOW WHICH PAGE TO REDIRECT TO?
+
+STEP 2:-
+
+We have an instance of LoginManager in our __init__.py file.
+That 'login_manager' has an attribute called 'login_view'
+Just as we pass 'function' in 'url_for' function,
+we assign the value to 'login_view' attribute
+
+COMMANDS:- IN __init__.py FILE
+from flask_login import LoginManager
+login_manager = LoginManager(app)
+login_manager.login_view = 'login' ----> CHECK THIS LINE, this points to 'def login' FUNCTION in
+                                        our routes.py file, not login.html
+
+login_manager.login_message_category = 'login' ----> CHECK THIS LINE
+
+Just as 'flash' function from 'flask' module takes an 'category' argument for styling the message,
+we pass a bootstrap styling class to 'login_manager.login_message_category'. This is for styling
+the message that is displayed when someone tries to access the account page without logging in.
+
+login_required decorator just tells the route that login is required to access this page.
+login_manager.login_view tells our extension 'where our login route is located'
+
+========================================================================================================================
+16. Some observations related to the above account route.
+
+1. If you directly try to access the account route, it now redirects to login page if you're not logged in.
+Once you log in, you are redirected to Home page.
+
+If we directly access the account route, then after logging in, user should be shown account page,
+not Home page. --> how to implement this change?
+
+2. Notice the change in url when try to access the account route directly without logging in.
+http://127.0.0.1:5000/login?next=%2Faccount
+
+A query parameter is added to the url which is equal to the route we added decorator to.
+QUERY PARAMETER:- next=%2Faccount
+%2F in url means '/'
+so it essentially says next=/account
+
+IN LOGIN ROUTE, WE CAN CHECK IF THE URL CONTAINS THE 'next' KEY AND IF YES, WE CAN KEEP THE USER
+IN THE ACCOUNTS PAGE AFTER LOGGED IN.
+
+IF NEXT IS NOT PRESENT, WE REDIRECT THE USER TO HOME PAGE.
+
+========================================================================================================================
+17. Using 'request' object from flask to achieve above functionality
+
+All the data recieved is stored in a global 'request' object by flask
+You can access it by from flask import request
+
+COMMANDS:-
+from flask import request
+
+@app.route('/login')
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('home'))
+
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+
+        if user and bcrypt.check_password_hash(user.password, form.password.data):
+            next_page = request.args.get('next')        ---> CHECK THIS LINE
+            if next_page:                                ---> CHECK THIS LINE
+                return redirect(url_for(next_page))      ---> CHECK THIS LINE
+            else:
+                return redirect(url_for('home'))
+        else:
+            flash('Login Unsuccessful.', category='danger')
+            return render_template('login.html', title='Login', form=form)
+
+
+IMPORTANT:-
+
+In the line next_page = request.args.get('next'):
+request.args returns a dictionary, the 'next' is key in the dictionary.
+We can also use request.args['next'] but that would throw an error if 'next' key is not
+found in the dictionary. The '.get' method returns 'None'.
+
+If we find next key in dictionary, we redirect to that page, or else redirect to home page.
+
+Run the application and check
+1. If you directly enter localhost:5000/account and login, it will remain at account page after logging
+in.
+2. If you click the login on home page and then enter the details, you will be redirected to
+home page after logging in.
+
+

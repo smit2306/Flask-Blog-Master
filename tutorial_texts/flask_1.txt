@@ -1,0 +1,46 @@
+========================================================================================================================
+IN THIS VID:
+1. Setting up flask and pipenv for flask
+2. Basic Flask app
+3. Run app by 1. setting env variables and 2.  __name__ == '__main__'
+4. Add multiple routes to a function
+
+========================================================================================================================
+Setting up the virtual env for this app using pipenv:
+navigate to Flask_Blog directory
+COMMANDS:- pipenv install flask
+
+Configure the interpreter in PyCharm using the pipfile:
+https://www.jetbrains.com/help/pycharm/pipenv.html
+
+1. the base interpreter: python 3.7.3 in usr/bin/python3
+2. check the install packages from pipfile option.
+3. and select the path of pipenv executable in the pipenv exec
+for finding path for pipenv
+COMMANDS:- type pipenv
+
+after that..it will automatically find the pipfile in the current project folder
+and use that packages and interpreter mentioned in that file.
+========================================================================================================================
+RUN APPLICATION USING TERMINAL : 1
+one way is to set an environment variable called FLASK_APP to our file and use the command
+flask run
+
+COMMANDS:-
+cd Projects/Flask_Blog
+pipenv shell
+export FLASK_APP=flaskblog.py
+flask run
+
+to run the application in debug mode..set env variable FLASK_DEBUG to '1'
+COMMANDS
+export FLASK_DEBUG=1
+flask run
+========================================================================================================================
+RUN APPLICATION USING python : 2
+
+add __name__ == '__main__' and app.run(debug=True)
+========================================================================================================================
+adding multiple routes to a page:
+
+Just add another decorator @app.route('/home') above the same function.

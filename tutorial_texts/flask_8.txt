@@ -1,0 +1,373 @@
+========================================================================================================================
+
+1. Creating a form PostForm in forms.py
+2. Creating new_post route in routes.py
+3. Creating new_post.html template
+4. Modifying home route to display posts from database
+5. Modifying home.html template
+6. Adding some extra functionality and things required for it
+7. How to create routes with variables in it?
+8. Creating post.html template and modifying home.html to link to that 'post' route
+9. Creating a new route that displays a form to update a post.
+10. Setting up update and delete routes for post.
+11. Modifying post.html template to include Update button
+12. Modifying post.html template to include Delete button
+13. Creating a delete_post route in routes.py
+========================================================================================================================
+1. We want to create a form that user could fill for posting to our blog. To achieve this we require
+a html template, a form in forms.py and a route in routes.py
+
+In forms.py,
+
+COMMANDS:-
+from wtforms import TextAreaField
+
+class PostForm(FlaskForm):
+    title = StringField('Title', validators=[DataRequired()])
+    content = TextAreaField('Content', validators=[DataRequired()]) ---> CHECK THIS LINE
+    submit = SubmitField('Post')
+
+We need TextAreaField for our content.
+
+========================================================================================================================
+2. Creating new_post route in routes.py
+
+@login_required
+@app.route('/post/new')
+def new_post():
+    form = PostForm()
+    if form.validate_on_submit():
+        post = Post(title=form.title.data, content=form.content.data, author=current_user) --> CHECK THIS LINE
+        db.session.add(post)
+        db.session.commit()
+        flash('Your post has been created!', 'success')
+        return redirect(url_for('home'))
+    return render_template('new_post.html', title='New Post', form=form)
+
+1. Only logged in users should be able to post hence the login required decorator
+
+2. if form validates on submit, we create the post and commit it to database and redirect the user
+to home page.
+
+Notice the 'author' in the code. The db.relationship adds this to the Post class.
+In author we pass the complete user object, hence we pass the current_user.
+========================================================================================================================
+3. Creating new_post.html template
+
+We copy the code of form tag from the register template and just modify it.
+========================================================================================================================
+4. Modifying home route to display posts from database.
+
+Currently our home route uses our made up data for the posts. We now add a simple query
+that will return the posts from database.
+
+COMMANDS:-
+def home():
+    posts = Post.query.all()
+    return render_template('home.html', posts=posts)
+========================================================================================================================
+5. Modifying home.html
+
+If you run the app after the changes made above, you can see that a complete user object is object
+is displyed on the home page and also the date and time is messy.
+We'd just want to display username, clean the date (we dont need time of post) amd also if we could
+display the profile picture of user in the post, that'd be nice.
+
+1. In home to html, 'post.author' is now a user object. To just display the username, we change it
+'post.author.username'
+
+2. 'post.date_posted' is now a datetime object. We used datetime.utcnow method to store date in database
+We can use strftime('some format') to format the date.
+
+Find post.date_posted in the home.html and modify to below
+COMMANDS:-
+{{ post.date_posted.strftime('%Y-%m-%d')}}
+
+3. Add the below image tag just after the <article class="media content-section">.
+
+COMMANDS:-
+<img class="rounded-circle article-img"
+src="{{ url_for('static', filename='profile_pics/' + post.author.image_file) }}"> ---> CHECK THIS LINE
+
+In above code, post.author is a complete user object added by 'backref' arg in db.relationship in
+User model. That will us access to all the attributes of user. Hence post.author.image_file will
+return the file name of the 'author's profile picture.
+========================================================================================================================
+6. Adding some extra functionality and things required for it
+
+We want a user to able to update and delete his posts. To do that first we need to have template and route
+that takes a user to a specific post he clicks on.
+
+If you hover your mouse on the post title, it is clickable but does not take you anywhere.
+If somebody clicks it, it should open in a template of it own.
+
+
+========================================================================================================================
+7. Creating a route in routes.py for each specific post.
+
+Id of the post will be a part of its route hence aach post will have its own route.
+How to create routes with variables?
+
+COMMANDS:-
+
+@app.route('/post/<int:post_id>')
+def post(post_id):
+    pass
+
+
+for example:
+/post/1 in url means post_id is 1
+/post/2 in url means post_id is 2
+
+We put a variable name (here it is 'post_id') in the angular brackets. The same variable also
+needs to be passed to route function.
+We can also specify the data type of the variable.
+
+SYNTAX:- app.route('/post/<DATA TYPE:VAR NAME>')
+
+How to call such a route using 'url_for' function?
+url_for('post', post_id)
+
+========================================================================================================================
+7. Creating a route in routes.py for a post.
+
+COMMANDS:-
+
+@login_required
+@app.route('/post/<int:post_id>') ---> CHECK THIS LINE
+def post(post_id):
+    post = Post.query.get_or_404(post_id) ---> CHECK THIS LINE
+    return render_template('post.html', post=post, title=post.title)
+
+1. We use the above mentioned feature of flask of creating routes with variables in it.
+
+2. We fetch the post by querying the Post table using the post_id. Normally we can query
+using 'Post.query.get()' method. Here we use 'get_or_404' method. If row is not found in the Post
+table it will return a 404 page not found error.
+
+========================================================================================================================
+8. Creating post.html template and modifying home.html to link to that 'post' route
+
+The post html template will be very similar to our home page. As we have only one post now, we
+just need to remove the for loop that loops through post. Rest of the code remains the same as
+home.html.
+
+Also if you see home.html, the title of the post is an anchor tag which redirects to the post page
+We dont need clickable title now in our post tag. Hence we would remove the anchor tag as well.
+
+If you see home.html, the href in anchor tag that displays post.title is #. We need to change it
+so that it can point to 'post' route.
+
+We replace the # in href with below.
+COMMANDS:-
+href = "{{ url_for('post', post_id=post.id) }}"
+
+If you run the app now and click on the post title on home page, you'll be redirected to following
+url http://localhost:5000/post/1
+========================================================================================================================
+9. Creating a new route that displays a form to update a post.
+
+This route will be very similar to post route created above.
+
+COMMANDS:-
+from flask import abort ---> CHECK THIS LINE
+
+@login_required
+@app.route('/post/<int:post_id>/update') ---> CHECK THIS LINE
+def update_post(post_id):
+    post = Post.query.get_or_404(post_id) ---> CHECK THIS LINE
+    if post.author != current_user: ---> CHECK THIS LINE
+        abort(403) ---> CHECK THIS LINE
+    form = PostForm()
+    if form.validate_on_submit():
+        post.title = form.title.data
+        post.content = form.content.data
+        db.session.commit()
+    elif request.method == 'GET':
+        form.title.data = post.data
+        form.content.data = post.content
+    return render_template('create_post.html', title='Update Post', form=form, legend='Update Post')
+
+1. Only a logged in user should be able to modify the post, hence the login required decorator
+
+2. We use get_or_404 method to return post if present or throw an 404 page not found error.
+
+3. Only the user who created the post should be able to edit it. To do this we can check the
+post.author with current_user. If not , we use 'abort(403)'. We import this abort method from flask
+and 403 is the response code we send. (403 - is response code for forbidden)
+
+4. Once everything validates, we display the same post form we use while creating the post.
+The routes 'new_post' and 'update_post' will use the same form 'PostForm' and use the same template
+'create_post.html.
+
+Since the legend of the form in both routes needs to different, we pass the legend as a variable to
+the template.
+in 'create_post.html' legend tag inside the form will have {{ legend }}
+in 'new_post' route, while rendering, we will pass another variable legend="New Post".
+
+IMPORTANT:-
+5. We also want to display the post title and post content in the form and after user edits it, we
+can commit it to database. Hence if form validates on submit, we change the title and content of the
+post using post.title and post.content. Notice that we dont need to use db.session.add everytime.
+If we just change using post.title and post.content, we just need to do db.session.commit()
+
+========================================================================================================================
+10. Setting up update and delete routes for post.
+
+If the logged in user is the author of the post, we would like to display Update and Delete buttons.
+We would display these buttons on the post.html template.
+
+========================================================================================================================
+11. Modifying post.html template to include Update button
+
+Just below our post.date_posted in the template, we add a condition that checks if the current user is
+the author of that post, if yes, we put another div tag that has anchor tag with style classes of button.
+The href argument of the anchor tag must point to our update post route.
+
+COMMANDS:-
+{% if current_user == post.author %}
+  <div>
+    <a class="btn btn-secondary btn-sm mt-1 mb-1" href="{{ url_for('update_post', post_id=post.id)}}">Update</a>
+    WE WILL PLACE OUR DELETE BUTTON HERE.
+  </div>
+{% endif %}
+
+========================================================================================================================
+12. Modifying post.html template to include Delete button
+
+We used anchor tag for the update button, however we will use 'button' tag for our Delete button.
+We would like to display a sort of pop up that asks user to confirm that they want to delete the
+post.
+That functionality is achieved by modals.
+Link to bootstrap modal code:-
+
+
+CODE:
+PART 1:- THE BUTTON
+<!-- Button trigger modal -->
+<button type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModal">
+  Launch demo modal
+</button>
+
+PART 2:- THE MODAL
+<!-- Modal -->
+<div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">Modal title</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        ...
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary">Save changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+1. The part 1 of the code is for creating a button. We would place such code just below our update
+button anchor tag.
+    CHANGES WE WILL MAKE:-
+    1. We will change the class of the button from btn-primary to btn-danger so that it displays
+    in red.
+
+    2. The data-target is #exampleModel in this case, we will rename it to deleteModal.
+    If you see the part 2 of the code, in first line it says id=exampleModal. We need to change
+    all occurences of exampleModal to deleteModal. even exampleModalLabel will be replaced by
+    deleteModalLabel.
+
+    3. We place the Modal just above the endblock content.
+
+    4. If you run the code as is, you'll see that '...' in the div tag with class 'modal body '
+    is displayed as text.
+    The h5 tag with class 'Modal title' 'Delete post' is the title of the modal.
+    We don want want anymore information to be displayed other than the title,
+    hence we will remove the div tag with class modal body.
+
+    5. If you look below the modal body tag, a div tag with class 'modal footer' has two buttons,
+    one is 'Close' button and other is save changes.
+
+    Instead of the 'Save changes' button, we will replace it with a form that can send a post request.
+    Inside that form tag we will add a 'input' tag that will classes 'btn btn-danger' to show it as a
+    button. The action argument in the form tag will be pointing to a delete post route in our routes.py.
+
+    We will create the delete_post route below.
+
+CODE CHANGED:-
+
+PART 1:
+{% if current_user == post.author %}
+  <div>
+    <a class="btn btn-secondary btn-sm mt-1 mb-1" href="{{ url_for('update_post', post_id=post.id)}}">Update</a>
+    <button type="button" class="btn btn-danger btn-sm m-1" data-toggle="modal" data-target="#deleteModal">Delete</button>
+  </div>
+{% endif %}
+
+PART 2:
+<!-- Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deleteModalLabel">Delete Post?</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <form action="" method="POST">
+          <input class="btn btn-danger" type="submit" value="Delete">
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+========================================================================================================================
+13. Creating a delete_post route in routes.py
+
+COMMANDS:-
+
+@login_required
+@app.route('/post/<int:post_id>/delete', methods=['POST']) --> CHECK THIS LINE
+def delete_post(post_id):
+  post = Post.query.get_or_404(post_id)
+  if current_user != post.author: --> CHECK THIS LINE
+    abort(403)
+  db.session.delete(post) --> CHECK THIS LINE
+  db.session.commit()
+  flash('Your post has been deleted', 'success')
+  return redirect(url_for('home'))
+
+1. The method in the route is just 'POST', not 'GET'. This means this route will not be accessible
+if you just type in the browser 'http://localhost:5000/post/2/delete'.
+
+2. Here we check if the current user is same as the author of the post.
+IMPORTANT:-
+Now there are more than required validations in place. Below are the validations in order of
+execution order.
+  a. First, the update and delete button in the post form is displayed only if current_user is
+  the author of the post.
+
+  b. Secondly, If somebody who is not the author of the post, tries to directly access the delete
+  route using 'http://localhost:5000/post/2/delete', he wont be able to access that page because
+  there is not get method. Even if the user is author of the post, you cannot access the delete_post
+  route using url. You can only access that via the delete button in the modal.
+
+  c. Lastly, we again check if the current use ris the author of the post. So even if we
+  have 'get' method in the route, 403 error will be thrown.
+
+  So as we dont have get method in the route, when we try to access the delete post using the url,
+  we will get 'method not allowed error'. If we had a get method, and user is not the author, we will
+  get 'forbidden access' error.
+
+3. To delete a post we can use db.session.delete(post). We need to commit this change to the databse.
+
+4. We display a flash message saying that post is deleted and redirect the user back to home page.
+========================================================================================================================

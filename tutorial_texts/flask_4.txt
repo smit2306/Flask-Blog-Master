@@ -1,0 +1,332 @@
+========================================================================================================================
+IN THIS VID: Creating a database using Flask-SqlAlchemy
+1. Intro. Why use SqlAlchemy to create a database?
+2. Setting some basic config to use sqlite database with flask-sqlalchemy - Modify flaskblog.py
+3. Creating sql alchemy database instance.
+4. Create User table in our database.
+5. Create Posts table in our database.
+6. Establish one to many relationship between User and Post models.
+7. Actually creating tables in our database: Some basic commands - 8 Steps.
+7th step is important and helps understand Topic 6 above better.
+
+COMMANDS:-
+========================================================================================================================
+1. Why use SqlAlchemy to create a database?
+SqlAlchemy is an ORM: Object Relational Mapper.
+
+SqlAlchemy allows us to create a database and interact with it in an easy to use Object Oriented
+manner.
+You can use different databases without changing your python code. If you want to use sqlite
+for testing and Postgres production, but all the code to create the database will be the same.
+We will do the same for this project.
+
+Install using
+COMMANDS:-
+pipenv install flask-sqlalchemy
+
+There is a regular sqlalchemy package also available but flask-sqlalchemy provides some useful
+defaults and helps for our flask application. Hence we will be using that.
+
+========================================================================================================================
+2. Setting some basic config to use sqlite database with flask-sqlalchemy - Modify flaskblog.py
+
+COMMANDS:-
+from flask_sqlalchemy import SQLAlchemy
+
+IMPORTANT
+After import we need to specify the URI for the database. URI is where the database is located.
+We currently don't have a database. For now we let's use a sqlite database.
+Sqlite database will simply be file in our file system.
+To set the location of this database, we need to set this is a configuration.
+Hence
+
+COMMANDS:-
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
+
+With sqlite you can specify relative path to database file using three forward slashes. Hence you
+see '///' in the above command. That will create site.db file in our project directory.
+========================================================================================================================
+3. Creating sql alchemy database instance.
+
+COMMANDS:-
+
+app = Flask(__name__)
+db = SQLAlchemy(app)
+
+We pass our flask app as an argument.
+We now have an sql alchemy database instance and are ready to work with databases.
+
+We can now represent our database structure as Classes and is intuitive to work with.
+That classes are generally called models.
+
+For the purpose of this video will add those classes in 'flaskblog.py' file, at a later stage
+we will separate those out in their own module.
+========================================================================================================================
+4. Create User model (table) in our database.
+
+Each class in will be a model (table) in our database.
+
+COMMANDS:-
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(20), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    image_file = db.Column(db.String(20), unique=True, default='default.jpg')
+    password = db.Column(db.String(60), nullable=False)
+
+    def __repr__(self):
+        return f"User('{self.username}', '{self.email}', '{self.image_file}')"
+
+As you can see in the code we create a class User (model user) that inherits from
+'db.Model'
+
+db.Column --> To add columns in table we use db.Column method.
+
+ARGS passed in the db.Column method:-
+
+db.Integer --> Data type of the column
+db.String(20) --> Data type of the column
+primary_key --> to specify if the column is a primary key of the table
+unique --> to specify if the column must contain unique values
+nullable --> to specify if the column must not be null
+default --> to specify default values to the column
+
+IMPORTANT:-
+
+1. Length of username field is set to 20 because we set the max length validator in the field to 20
+in our register.html form.
+2. image_file contains the file names of the images.
+3. Length of image_file is set to 20, we will use a hashing algorithm later on
+which will convert the length of file name to 20
+4. Length of password is set to 60 because we will use a hashing algorithm later on
+which will convert the password to having 60 length
+5. We have also implemented the __repr__ method so that when we print out a row of the
+table, it shows in the format we want.
+
+========================================================================================================================
+5. Create Posts model (table) in our database.
+
+We create the Posts model in similar way as above.
+We have id for the post, title, date when posted and content as columns.
+
+COMMANDS:-
+class Posts(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100), nullable=False)
+    date_posted = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    content = db.Column(db.Text, nullable=False)
+
+    def __repr__(self):
+        return f"Post('{self.title}', '{self.date_posted}')"
+
+IMPORTANT:-
+
+1. Type for date_posted is db.DateTime
+2. If one does not provide the date posted for a post, we want default value to be current time.
+We can get current time by 'datetime.utcnow()'. utcnow() is a function, however if we pass
+'utcnow()' with round braces to the 'default' argument, it will take value as the time when code is
+executed. Hence we PASS FUNCTION (without round braces), not the executed function.
+
+COMMANDS:-
+from datetime import datetime
+datetime.utcnow()
+
+3. Type for content is db.Text
+
+========================================================================================================================
+6. Establish one to many relationship between User and Post models.
+
+If you see the definition of 'Post' model above, we have not defined the author of the
+post as a column yet. Because 'User's author 'Post's there is a One to many relationship
+between user and a post. One user can have multiple posts.
+
+COMMANDS:- In the 'Post' class
+
+user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+COMMANDS:- In the 'User' class
+
+posts = db.relationship('Post', backref='author', lazy=True)
+
+If you check the code in 'Post' class, we added a 'COLUMN' named user_id which is
+foreign key - id from table 'user'.
+
+If you check the code in 'User' class, we added a 'RELATIONSHIP'
+
+ARGUMENTS:-
+1. 'Post' --> this is actually a reference to class 'Post'
+We use the class name here because the the table 'Post' may be defined anywhere later in the code.
+
+The db.ForeignKey('user.id') has 'user' in small caps because it is actually referencing the table
+'user' not the class User. When we declare class it has upper caps but in database all table names are
+converted to small caps. Hence
+db.ForeignKey('table_name.column_name')
+and
+first argument in db.relationship('CLASS_NAME') i.e references the 'class Post' not 'table post'.
+
+2. backref --> 'author'
+This adds a 'view' 'author' to the class Post. If you have a post and type 'post.author', it will
+return all the details of the user that authored the post.
+Backref adds a view to the class it has a relationship with. It is not an actual column but
+post.author will fetch the user that created it.
+
+3. lazy=True
+Loads data when we required.
+
+SUMMARY of above:-
+We want to retrieve all the posts made by a user. This thing is taken care by the db.relationship()
+IT IS NOT A COLUMN. Table User does not have a column named posts, it's like a 'view'.
+Whenever we use user.posts, we get all the posts made by that user.
+
+To have a db.relationship() between two tables, the child table (many table) must have a foreign key
+to the parent table(one table). In our case we have user_id as foreign key.
+
+In our case, how will the db.relationship() know to load multiple posts from Post table???
+On condition will it know? There isn't anything mentioned of using user id to fetch posts in
+the db.relationship() code..then how?
+
+Because the post table has a foreign key 'user_id'. This foreign key is used. without this foreign key
+between user and post, he db.relationship will not work.
+
+SEE STEP 8 of topic 7 in this file for a better idea.
+Check documentation of flask_sqlalchemy for more info.
+========================================================================================================================
+7. Actually creating tables in our database: Some basic commands.
+
+We will use command line to create our database and test if above code works.
+in your pipenv run python and run below commands>
+----------------------------
+STEP 1:- Creating all tables
+
+COMMANDS:-
+from flaskblog.py import db
+db.create_all()
+
+This will create a site.db file in our project directory.
+----------------------------
+STEP 2:- Creating a user.
+
+COMMANDS:-
+from flaskblog import User, Post
+user_1 = User(username='Corey', email='c@demo.com', password='pass')
+user_2 = User(username='Smit', email='s@patel.com', password='pass')
+
+We add using the above syntax. arguments are the column names we specified.
+also, we did not the image file so it will pick up the default value we passed during the class
+
+We have created the users above but they are still are not added to the database.
+----------------------------
+STEP 3:- Adding the above created users to database.
+COMMANDS:-
+db.session.add(user_1)
+db.session.add(user_2)
+db.session.commit()
+
+----------------------------
+STEP 4:- Querying the user table using python
+
+COMMANDS:-
+User.query.all()
+User.query.first()
+
+SYNTAX:
+CLASS_NAME.query.all() --> to get all the rows in the User table.
+CLASS_NAME.query.first() --> to get the first row in the User table.
+
+The output will be printed in the format we specified in __repr__ method of the class.
+
+----------------------------
+STEP 5:- Query user table with some filters
+
+COMMANDS:-
+User.query.filter_by(username='Corey').all()
+
+SYNTAX:
+CLASS_NAME.query.filter_by(COLUMN_NAME='some_value').all() -->
+to get all the rows in the User table with column_name = our value.
+
+if you just use 'User.query.filter_by(username='Corey')' without '.all()' at the end
+it will return an iterator. .all will return the result as a list.
+
+You can also use the '.first()'method here.
+COMMANDS:-
+User.query.filter_by(username='Corey').first()
+--> to get the first row in the User table with column_name = our value.
+----------------------------
+STEP 6:- Query user table with primary key
+
+COMMANDS:-
+User.query.get('value of primary key')
+
+SYNTAX:
+CLASS_NAME.query.get('value of primary key') -->
+to get all the rows in the User table with primary key = our value.
+----------------------------
+STEP 7:- Accessing attributes if returned row
+
+We store the row in a variable and access its attributes by below syntax
+
+COMMANDS:-
+user = User.query.filter_by(username='Corey').first()
+user.id
+user.email
+user.image_file
+user.posts
+
+----------------------------
+STEP 7:- Creating posts in our post table
+
+COMMANDS:-
+post_1 = Post(title='blog_1', content='First post content', user_id=user.id)
+post_2 = Post(title='blog_2', content='Second post content', user_id=user.id)
+db.session.add(post_1)
+db.session.add(post_2)
+db.session.commit()
+
+----------------------------
+STEP 8:- Accessing attributes of post
+
+COMMANDS:-
+post = Post.query.first()
+post.title
+post.content
+>>> post = Post.query.first()
+>>> post.user_id
+2
+
+>>> post.author
+User('Corey', 'c@demo.com', 'default.jpg')
+
+>>> user.posts
+[Post('blog_1', '2020-01-26 05:09:47.259308'), Post('blog_2', '2020-01-26 05:09:47.260602')]
+
+The output of post.user_id returns only the user id of the author. That's the only information
+available in the table post.
+Sometimes we need more information about the user who created the post
+post.user returns the complete row from the user table.
+
+VERY IMPORTANT:-
+1. See the output of post.author and code of class Post.
+We DO NOT HAVE A COLUMN 'author' in our class Post.
+That attribute is added by 'db.relationship 'in class User.
+The "backref='author'" added this.
+It's just like a additional query. When we do post.author, it will run the query.
+
+2. Same is the case with user.posts. 'posts' is not a column, it just runs an additional
+query when we do user.posts
+
+3. lazy = True in db.relationship means when such query is run. In our case it is true.
+That means query will be only when we execute user.posts or post.author..not before.
+
+----------------------------
+STEP 8:- Delete all tables
+
+COMMANDS:-
+db.drop_all()
+
+db.create_all() # creating tables again
+User.query.all() # query user table. This will return a empty list now
+Post.query.all() # query post table. This will return a empty list now
+
+

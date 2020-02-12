@@ -1,0 +1,265 @@
+========================================================================================================================
+1. Why pagination?
+2. How to use pagination? flask-sqlalchemy's paginate method and basic attributes
+3. Modifying our home route to add pagination in routes.py
+4. Slight Modification in home.html to incorporate above changes.
+5. ITER_PAGES attribute to get page numbers.
+6. Adding a for loop in home.html to loop over the pages and pass it as a query parameter.
+7.
+8.
+9.
+10.
+========================================================================================================================
+1. Why pagination?
+
+Currently, we have only two or three posts in our database and we load it all in our home page using
+Post.query.all(). If we have thousands of posts along with images, it'd take a lot of time to load
+and would make our application slow. Hence we would like to query only a few posts per page.
+
+We add 25 posts. The code is in add_posts.py file. Run that in terminal.
+========================================================================================================================
+2. How to use pagination? flask-sqlalchemy's paginate method
+
+We currently have been doing queries like using 'Post.query.all()'. It returns a list which we can iterate
+through to display them.
+
+We now use 'paginate()' method instead of .all() method. That paginate method will return an object of class
+paginate whose attributes we will use.
+
+COMMANDS:-
+>>>posts = Post.query.paginate()
+>>>posts --> Is an object of class Paginate
+>>>dir(posts) --> 1.
+
+>>>posts.per_page --> 2.
+20
+
+>>>posts.page --> 3.
+1
+
+>>>for post in posts.items: --> 4.
+>>>...     print(post)      --> 4.
+
+>>>posts = Post.query.paginate(page=2) --> 5.
+>>>for post in posts.items: --> 5.
+>>>...     print(post)      --> 5.
+
+>>>posts = Post.query.paginate(per_page=5, page=2) --> 6.
+>>>for post in posts.items: --> 6.
+>>>...     print(post)      --> 6.
+
+>>>posts.total --> 7.
+
+1. dir(posts) will return the methods and attributes available for this object.
+
+2. posts.per_page will return the number of posts per page.
+
+3. posts.page will return the current page of the iterator. 1 will be output here.
+
+4. for looping through our posts and printing them, we can 'posts.items'. However if you check the
+output of the for loop, it will print only 20 posts. It's because we are on page 1, and per page there
+are only 20 posts. Hence posts.items will return 20 posts.
+There are a total of 25 posts in our database. Hence if we were on page 2, posts.items would give
+5 posts.
+How to get to the second page?
+
+5. To get the posts in second page, we can run the similar query using Post.query.paginate() but this
+time we will pass the 'page' argument. It is the page number.
+
+6. If we find per_page 20 posts to be too much, we can change it by specifying the same in the query.
+Post.query.paginate(per_page=5, page=2). If we loop through this, we will get 5 posts now.
+
+7. To get the total number posts in the database, we can use the total attribute of this paginate
+object.
+
+========================================================================================================================
+3. Modifying our home.html route to add pagination.
+
+IMPORTANT:- HOW TO CREATE AND PASS QUERY PARAMETERS?
+
+In a dynamic url such as '/post/<int:post_id>', when we call it using url_for function we use
+url_for('post', post_id=SOME VALUE).
+Now lets say we dont have a dynamic url, but still we want to some value from html to the route..
+Tht is called a query parameter.
+
+If you use url_for('home', test='this is test value.'), the route for home does not accept any varible.
+You will be able to access this 'test' query parameter passed by using request.args.get('test').
+So whatever keyword parameters pass you pass to the url_for function, which are not in route, can
+be accessed using request.args.get().
+
+FOR EXAMPLE:
+url_for('post', post_id=post.id, MY_QUERY_PARAM='SOME VALUE')
+@app.route('/post/<int:post_id>')
+def post(post_id):
+    print(request.args.get('MY_QUERY_PARAM'))
+
+
+COMMANDS:-
+@app.route('/')
+@app.route('/home')
+def home():
+    page = request.args.get('page', 1, type=int) --> CHECK THIS LINE
+    posts = Post.query.paginate(page=page, per_page=5) --> CHECK THIS LINE
+    return render_template('home.html', posts=posts)
+
+1. If we just use the Post.query.paginate() without page argument, it will always return the posts
+    in first page. We need to pass in the page number to this function.
+    We pass in the page number using query parameter explained above. Also, this query parameter is
+    optional, hence '1' is default value we pass. Also, we add 'type=int' so that if somebody
+    passes anything other than integer in url_for(page="SOME VALUE") it will throw a value error.
+
+========================================================================================================================
+4. Slight Modification in home.html to incorporate above changes.
+
+Now the posts we pass to the home.html template is an object of class Paginate, not a list.
+Hence in home.html while looping , instead of
+
+for post in posts
+
+We use
+
+for post in posts.items
+
+Run the app now, it should work fine. This will now display only 5 posts on the home page.
+We still havent modified to pass page number as query paramter, we will do that later on
+but if you manually add "?page=2" in the url, it will display the posts in second page.
+========================================================================================================================
+5. ITER_PAGES attribute to get page numbers.
+
+COMMANDS:-
+>>> posts = Post.query.paginate(page=6, per_page=2)
+>>> for page in posts.iter_pages():
+...     print(page)
+...
+1
+2
+None
+4
+5
+6
+7
+8
+9
+10
+11
+12
+
+We have 24 posts, and we change the per_post argument to 2 in the query. That means we will have 12 pages.
+
+If you see the output of posts.iter_pages() above, there is None in between. Why? What does it
+represent?
+Whenever we see some websites, current page number is displayed and numbers after that are shown as
+'...'. That None is basically that. This will make much more sense when we add code to html.
+========================================================================================================================
+6. Adding a for loop in home.html to loop over the pages and pass it as a query parameter.
+
+Just after our for loop that loops through posts.items, we will add another loop to iterate through
+page numbers that we get from 'iter_pages()' method of 'posts'.
+
+Remember 'iter_pages()' can have None values as well and we will display that as '...'. Hence we
+need to check this as well.
+
+COMMANDS:-
+{% for page_num in posts.iter_pages() %}
+    {% if page_num %} --> if page num is not None
+        LINKS TO OUR PAGES
+    {% else %} --> if page num is None
+        ...
+    {% endif %}
+{% endfor %}
+
+
+COMMANDS:-
+{% for page_num in posts.iter_pages() %}
+  {% if page_num %}
+    {% if posts.page == page_num %}
+      <a class="btn btn-info mb-4" href="{{ url_for('home', page=page_num) }}">{{ page_num }}</a>
+    {% else %}
+      <a class="btn btn-outline-info mb-4" href="{{ url_for('home', page=page_num) }}">{{ page_num }}</a>
+    {% endif %}
+
+  {% else %}
+    ...
+  {% endif %}
+{% endfor %}
+
+1. Whenever, home page loads the posts are displayed by the upper for loop and links are created below
+using another for loop that runs through posts.iter_pages().
+
+2. The page number returned by posts.iter_pages() can also be none, hence if it is None, we displa
+'...' or else the page number.
+
+3. Anchor tag with text as 'page_number' and href to 'home' route is placed. If you see the href argument,
+we pass page=page_num to the function. That will be now br accessible to 'def home' using request.args.
+
+4. Also if the link with current page number has a different formatting so we can see which page we
+are on.
+
+5. Now if you run the application, there are a lot of links displayed below. We dont want that
+many links. To do that we pass some arguments to posts.iter_pages() function.
+
+posts.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2)
+left_edge=1 --> Number of links on far left
+right_edge=1 --> Number of links on far right
+left_current=1 --> Number of links to the left of current page
+right_current=2 --> Number of links to the right of current page. This also includes the current page
+hence we set that as two.
+
+6. We now change the posts per page back to higher a number in home route.
+
+========================================================================================================================
+7. Sorting the posts in descending order.
+
+The posts displayed are in ascending order, we would want the newer posts at the top.
+We change our query in home route in routes.py file.
+
+COMMANDS:-
+
+posts = Post.query.oder_by(Post.date_posted.desc()).paginate(page=page, per_page=5)
+SYNTAX: MODEL_CLASS.COLUMN.desc()
+MODEL_CLASS.query.order_by(MODEL_CLASS.COLUMN.desc())
+========================================================================================================================
+8. Creating user_posts route in routes.py file.
+
+As you can see in the home page, the author name of the post is a link, but it doesn't take you
+anywhere. We would to display all the posts made by that user if we click on the author.
+This route will be similar to our home route.
+
+COMMANDS:-
+
+@app.route('/user/<string:username>')
+def user_posts(username):
+  page = request.args.get('page', 1, type=int)
+  user = User.query.filter_by(username=username).first_or_404() --> CHECK THIS LINE
+  posts = Post.query.filter_by(author=user)\ --> CHECK THIS LINE
+      .order_by(Post.date_posted.desc())
+      .paginate(page=page, per_page=5)
+  return render_template('user_posts.html', posts=posts, user=user)
+
+========================================================================================================================
+9. Creating user_posts.html template.
+
+We copy the complete code from the home.html file. We just add an extra heading h1 tag before everything
+in our content block.
+
+COMMANDS:- heading tag
+
+<h1 class="mb-3">Posts by {{ user.username }} ({{ posts.total }}) </h1>
+
+The tag will display the username and the total number of posts made by that user.
+========================================================================================================================
+10. Modifications in user_posts.html
+
+1. The clickable link that displays post.author.username in the card is still there. We need to add
+url_for for user_posts route to the href argument of the link.
+
+2. The pagination links we added still refer to url('home')..we need to change them to point to
+user_post route in routes.py
+
+========================================================================================================================
+11. Modifications in home.html and user.html
+
+1. The clickable link that displays post.author.username in the card is still there. We need to add
+url_for for user_posts route to the href argument of the link.
+This is present in both post and home routes.
+========================================================================================================================

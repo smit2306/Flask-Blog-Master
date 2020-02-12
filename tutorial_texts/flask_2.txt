@@ -1,0 +1,265 @@
+========================================================================================================================
+IN THIS VID: TEMPLATES
+1. Adding html files to template folder in our project
+2. Rendering html files using flask.render_template('template_name.html')
+3. Passing variables to html file
+4. Adding for loop in home.html for loping through our 'posts' var
+5. Adding if loop in home.html, about.html for passing title to the page
+6. Template inheritance, how to make 'blocks'
+7. Creating layout.html and block 'content' in the same
+8. Changing our home.html and layout.html to override the block in layout.html
+9. Adding some basic bootstrap styling to our page : modifying layout.html 6 steps
+10. Modifying home.html: 1 step
+
+========================================================================================================================
+CREATING 'templates' DIRECTORY
+We can return complete html code in the function but it'd get very messy very quickly.
+Hence we add Html pages in a separate directory called 'templates' within our project folder.
+
+create a folder 'templates'
+add 'home.html' and 'about.html' files to it
+========================================================================================================================
+RENDERING HTMLS FROM templates
+
+COMMANDS:-
+flask.render_template('template_name.html')
+========================================================================================================================
+PASSING VARIABLES TO HTML PAGE
+COMMANDS:-
+flask.render_template('home.html', var_on_html_posts=local_var_posts)
+
+the name of the arguments you pass on the render_template function will be the variable names in that html template.
+========================================================================================================================
+We now add for loop in the home.html page for printing the posts
+add following in the BODY tag of home.html
+COMMANDS:-
+{% %} ---> code start end
+{{ variable name to be accessed }}
+
+COMMANDS:-
+{% for post in posts %}
+    <h1> {{ post.title }}</h1>
+    <p> {{ post.content }}</p>
+    <p> {{ post.date_posted }}</p>
+{% endfor %}
+
+========================================================================================================================
+We also add if condition to check whether the title is passed to the page or not,
+if passed we use that as a page title
+
+add following in the HEAD tag of home.html and about.html
+
+COMMANDS:-
+{% if title %}
+    <title> Flask Blog - {{ title }}</title>
+{% else %}
+    <title> Flask Blog </title>
+
+========================================================================================================================
+Now there is repetition of code in the home.html and about.html page..
+The title tag implementation is same for both..
+To make our code DRY: we use template inheritance.
+
+Template inheritance is base html template on which our pages will be based,
+the child html pages will be able to override some parts of it.
+
+we just put the overriding or the part unique to page (say home.html) in home.html file.
+========================================================================================================================
+As you can see the layout.html file, it has the body and title tags but home.html does not.
+
+The title tag in layout.html has the repeated code which will be executed for both..
+however in body tag---
+we define a BLOCK..THAT CAN BE OVERIDDEN.
+
+COMMANDS:-
+{% block content %} {% endblock %}
+
+{% block BLOCKNAME %} {% endblock %}
+
+you dont need to mention the block name in endblock, however, jinja allows us to put the name there
+for better code maintenance.
+
+{% block content %} {% endblock content%}
+========================================================================================================================
+HOME.HTML changes after the layout.html is created.
+
+we add our for loop in the block
+
+COMMANDS:-
+{% extends "layout.html" %}
+{% block content %} OUR FOR LOOP GOES HERE.. {% endblock content%}
+the block defined here must be same as the one in layout.html
+========================================================================================================================
+ABOUT.HTML changes after the layout.html is created.
+
+we add our h1 tag in the block
+
+COMMANDS:-
+{% extends "layout.html" %}
+{% block content %} OUR FOR H1 TAG GOES HERE.. {% endblock content%}
+the block defined here must be same as the one in layout.html
+========================================================================================================================
+BASIC BOOTSTRAP
+
+Bootstrap is very popular framework that helps in styling the web pages
+We use some basic bootstrap js files from template of bootstrap website.
+Also, these js files don't need to be downloaded as they are served by CDN (Content Delivery Network).
+
+https://getbootstrap.com/docs/3.3/getting-started/
+look for bootstrap starter template
+
+Adding bootstrap code
+========================================================================================================================
+MODIFYING LAYOUT.HTML FILE FOR ADDING BOOTSTRAP CODE
+
+BEFORE CODE:
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    {% if title %}
+        <title>Flask Blog - {{ title }}</title>
+    {% else %}
+        <title>Flask Blog</title>
+    {% endif %}
+</head>
+<body>
+    {% block content %} {% endblock content%}
+</body>
+</html>
+========================================================================================================================
+MODIFICATIONS:
+STEP 1. adding meta tags and bootstrap css in head tag.
+
+COMMANDS:-
+<!-- Required meta tags -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<!-- Bootstrap CSS -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+========================================================================================================================
+STEP 2. Adding java scripts after block content in the body tag
+
+COMMANDS:-
+<!-- Optional JavaScript -->
+<!-- jQuery first, then Popper.js, then Bootstrap JS -->
+<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+
+========================================================================================================================
+STEP 3. Moving our block content inside div tag with class container
+
+COMMANDS:-
+<div class="container">
+       {% block content %} {% endblock content%}
+</div>
+
+you can see the change in the fonts now after refreshing..
+========================================================================================================================
+STEP 4. Adding navigation bar code right after starting the body tag
+
+open the snippets folder in corey's git and look for navigation.html
+place that code just after starting the body tag
+
+COMMANDS:-
+
+<header class="site-header">
+  <nav class="navbar navbar-expand-md navbar-dark bg-steel fixed-top">
+    <div class="container">
+      <a class="navbar-brand mr-4" href="/">Flask Blog</a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarToggle" aria-controls="navbarToggle" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarToggle">
+        <div class="navbar-nav mr-auto">
+          <a class="nav-item nav-link" href="/">Home</a>
+          <a class="nav-item nav-link" href="/about">About</a>
+        </div>
+        <!-- Navbar Right Side -->
+        <div class="navbar-nav">
+          <a class="nav-item nav-link" href="/login">Login</a>
+          <a class="nav-item nav-link" href="/register">Register</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+</header>
+
+========================================================================================================================
+STEP 5. Adding main section for our block content
+
+visual changes:- better presentation of our posts
+
+open the snippets folder in corey's git and look for main.html
+copy that code and REPLACE our div class container for block content
+
+COMMANDS:-
+<main role="main" class="container">
+  <div class="row">
+    <div class="col-md-8">
+      {% block content %}{% endblock %}
+    </div>
+    <div class="col-md-4">
+      <div class="content-section">
+        <h3>Our Sidebar</h3>
+        <p class='text-muted'>You can put any information here you'd like.
+          <ul class="list-group">
+            <li class="list-group-item list-group-item-light">Latest Posts</li>
+            <li class="list-group-item list-group-item-light">Announcements</li>
+            <li class="list-group-item list-group-item-light">Calendars</li>
+            <li class="list-group-item list-group-item-light">etc</li>
+          </ul>
+        </p>
+      </div>
+    </div>
+  </div>
+</main>
+
+========================================================================================================================
+STEP 6. Adding main.css file in our project. url_for function.
+
+CSS files in our project must be added under the 'static' directory.
+open the snippets folder in corey's git and look for main.css file.
+place that file in the static folder.
+
+we now need to include this file in our layout template.
+To do this, we will need to import function named url_for from flask.
+
+COMMANDS:-
+from flask import url_for
+
+this function will find the exact location of css file (or any file) for us,
+so that we don't need to worry about the paths
+
+once we import the function in our flaskblog.py, we go to layout.html
+
+just below the bootstrap css styles in the head tag,
+add the below code.
+the function takes two arguments, folder name for our static files and a file name.
+
+COMMANDS:-
+<link rel="stylesheet", style="text/css", href="{{ URL_FOR('FOLDER_NAME', FILENAME='MAIN.CSS' )}}">
+
+{{ url_for('static', filename='main.css) }}
+
+========================================================================================================================
+MODIFYING HOME.HTML FOR CARD LIKE BLOG POSTS
+
+open the snippets folder in corey's git and look for article.html file.
+place that code within the loop of our home.html.
+
+COMMANDS:-
+{% extends "layout.html" %}
+
+{% block content %}
+    {% for post in posts%}
+    PLACE COREY'S CODE HERE. Delete our old code
+    {% endfor %}
+{% endblock content %}
+
+
+

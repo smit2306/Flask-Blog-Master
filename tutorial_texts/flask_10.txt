@@ -1,0 +1,320 @@
+========================================================================================================================
+1. Why generate a secret token?
+2. Using itsdangerous module to generate time sensitive tokens for password reset links: Some basic commands
+3. Modifying User model in models.py to generate these tokens and retrieve info from generated tokens.
+4.
+5.
+6.
+7.
+8.
+9.
+10.
+
+COMMANDS:-
+========================================================================================================================
+1.
+
+Read Email confirmation section from
+https://exploreflask.com/en/latest/users.html
+
+We generate a unique url when user want to reset a password and send that link via email to the
+user. Now he can forward that link to somebody else's email and then open it. How will we that
+the link we sent belongs to which user? We dont save this url to database.
+
+We encode some information along with the url that will help us identify the user. This will be more
+clear below.
+
+========================================================================================================================
+2. Using itsdangerous module to generate time sensitive tokens
+
+COMMANDS:-
+>>> from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
+>>> s = Serializer('secret', 30)
+>>> token = s.dumps({'user_id': 1}).decode('utf-8')
+>>> token
+'eyJhbGciOiJIUzUxMiIsImlhdCI6MTU4MTQwMzI1NCwiZXhwIjoxNTgxNDAzMjg0fQ.
+eyJ1c2VyX2lkIjoxfQ.eoKOLDc227q0cH6UCQWjg9EHxODBcIDTrsZX-Oa1nJ9n7MQ_GJbePXrbouIodWdWt78cPxwDvM0wmmAVSFruaw'
+>>> s.loads(token)
+{'user_id': 1}
+>>> s.loads(token)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/Users/smitpatel/.local/share/virtualenvs/Flask_Blog-rM2cyIJy/lib/python3.7/site-packages/itsdangerous/jws.py",
+  line 205, in loads
+    date_signed=self.get_issue_date(header),
+itsdangerous.exc.SignatureExpired: Signature expired
+
+1. We use 'TimedJSONWebSignatureSerializer' to generate the secret tokens. To instantiate the object
+we need to pass the secret key stored in app.config['SECRET_KEY']. Here for example we passed the 'secret'
+string.
+
+2. In the point above we talked about a potential problem. If we are not storing the url we send to
+user in the database, how would we identify which email's password to reset to?
+
+the method s.dumps(some dictionary/ also called payload) will help with this.
+This dumps() method will generate a token and that will be in the url
+for ex token generated is 'abcd1234' so password reset url will be something like
+http://localhost:5000/reset_password/abcd1234
+
+Now this 'abcd1234' token when given to s.loads(token) method, it will be able to
+retrieve the payload. In that payload we will encode the information we require to identify the user.
+
+In this example, the payload is '{'user_id': 1}'. We encode user id information, hence when we decode
+using loads() method, we will get user id which will inturn let us know which user's password to
+be changed.
+
+This token generated using dumps() method is time sensitive. after sometime it will expire. We can
+specify the time in seconds during which it will be active.
+
+SO in a nutshell
+Instantiate serializer object and use app.config['SECRET_KEY']
+Generate token and encode payload using s.dumps(payload) method
+Retrieve the payload using s.loads(token) method.
+========================================================================================================================
+3.
+
+We add the below two methods in the User model to generate and verify tokens:
+COMMANDS:-
+
+def get_reset_token(self, expires_sec=1800):
+        s = Serializer(app.config['SECRET_KEY'], expires_in=expires_sec)
+        return s.dumps({'user_id': self.id}).decode('utf-8')
+
+@staticmethod
+def verify_reset_token(token):
+    s = Serializer(app.config['SECRET_KEY'])
+    try:
+        user_id = s.loads(token)['user_id']
+    except:
+        return None
+    return User.query.get(user_id)
+
+1. The get reset token method takes in expires time in seconds and returns a token. Now the
+information if user has to be encoded there so s.dumps() contains user_id of the
+instance of User class. So whichever user generated it, his user id is encoded in the payload.
+
+2. The verify_reset_token method is a static method because it is not tied to any instance of
+class User. It is related to class User hence the static method.
+We instantiate the serializer object using the same app.config's secret key.
+This method takes in the token and tries to return a from userid information in the payload.
+
+Now if the token is expired or the user id is not present in the payload, it will throw an error.
+Hence we use try catch block. If we are wable to fetch the user_id from payload, we will return
+the User object using User.query.get(user_id) else we will return None.
+
+========================================================================================================================
+4.
+
+We now have a way to generate and validate tokens. Let's create route for Users to reset their
+passwords.
+
+We will two new forms for our routes.
+
+1. One Form when user goes to the reset password page. In this form he will be able to submit his
+email and we will send further instructions to reset a password in the email.
+
+2. Second form when the user opens the link we send via email. In this form user will be able to
+enter a new password and submit it.
+
+FORM 1:-
+class RequestResetForm(FlaskForm):
+    email = StringField('Email',
+                        validators=[DataRequired(), Email()])
+
+    submit = SubmitField('Request Password Reset')
+
+    def validate_email(self, email):
+        user = User.query.filter_by(email=email.data).first()
+        if user is None:
+            raise ValidationError(
+                'There is no account with that email. You must register first.')
+
+We add email and submit to the form. There is one validation we add. We check if the email
+is present in the database, if not, user hasnt registered and hence we throw an error.
+
+FORM 2:-
+class ResetPasswordForm(FlaskForm):
+    password = PasswordField('Password',
+                             validators=[DataRequired()])
+
+    confirm_password = PasswordField('Confirm Password',
+                                     validators=[DataRequired(), EqualTo('password')])
+
+    submit = SubmitField('Reset Password')
+========================================================================================================================
+5. Creating reset_request route in routes.py
+
+@app.route('/reset_password', methods=['GET', 'POST'])
+def reset_request():
+    if current_user.is_authenticated: --> CHECK THIS LINE
+        return redirect(url_for('home'))
+    form = RequestResetForm()
+    return render_template('reset_request.html', title='Reset Password', form=form)
+
+We would want the user to be logged out for changing the password. Hence we put the check of
+current_user.is_authenticated. Rest of the code is self explanatory.
+
+We will create the reset_request template below.
+
+========================================================================================================================
+6. Creating reset_request.html template
+
+We copy the complete code from login.html template and modify.
+1 We remove the div tags with not required fields. We only have an email field in this form.
+2. We also remove the small tag containg forgot password.
+3. We remove the complete div that contains small tag and says 'Need an account?'
+
+COMMANDS:-
+{% extends "layout.html" %}
+{% block content %}
+<div class="content-section">
+    <form method="POST" action="">
+        {{ form.hidden_tag() }}
+        <fieldset class="form-group">
+            <legend class="border-bottom mb-4">Reset Password</legend>
+            <div class="form-group">
+                {{ form.email.label(class="form-control-label") }}
+                {% if form.email.errors %}
+                {{ form.email(class="form-control form-control-lg is-invalid") }}
+                <div class="invalid-feedback">
+                    {% for error in form.email.errors %}
+                    <span>{{ error }}</span>
+                    {% endfor %}
+                </div>
+                {% else %}
+                {{ form.email(class="form-control form-control-lg") }}
+                {% endif %}
+            </div>
+        </fieldset>
+        <div class="form-group">
+            {{ form.submit(class="btn btn-outline-info") }}
+        </div>
+    </form>
+</div>
+{% endblock content %}
+
+========================================================================================================================
+7. Creating the reset_token route. The route that will actually reset the password.
+
+COMMANDS:-
+@app.route('/reset_password/<token>', methods=['GET', 'POST'])
+def reset_token(token):
+    if current_user.is_authenticated:
+        return redirect(url_for('home'))
+    user = User.verify_reset_token(token)
+    if user is None:
+        flash('That is an invalid or expired token', 'warning')
+        return redirect(url_for('reset_request'))
+    form = ResetPasswordForm()
+    return render_template('reset_token.html', title='Reset Password', form=form)
+
+This is similar to the reset_request route.
+This route is dynamic and has a token at the end or url.
+We first check if the current user is logged out, if not, we redirect him back to home page.
+
+If the current user is logged out, we try to get to user object using the User.verify_reset_token
+method we created in the user model class. Now this method can also None if the token is expired
+hence we check that. If the user is none, we show a flash message and redirect him back to the reset
+request route.
+
+If the user is not None, we render the 'reset_token.hml' template.
+
+========================================================================================================================
+8. Creating the reset_token.html template.
+
+This template is similar to reset_request.html template. Just instead of email field, we have
+password and confirm password fields.
+
+========================================================================================================================
+9. Modifying the reset_request route.
+
+@app.route('/reset_password', methods=['GET', 'POST'])
+def reset_request():
+    if current_user.is_authenticated:
+        return redirect(url_for('home'))
+    form = RequestResetForm()
+    if form.validate_on_submit(): --> CHECK THIS LINE
+        user = User.query.filter_by(email=form.email.data).first() --> CHECK THIS LINE
+        send_reset_email(user) --> CHECK THIS LINE
+        flash('An email has been sent with instructions to reset your password', 'info')
+        return redirect(url_for('login'))
+    return render_template('reset_request.html', title='Reset Password', form=form)
+
+
+Now when the RequestResetForm validates, we want to send an email to the user. Sending email is
+a logic of its own and hence we will separate it out as a function.
+As the form validates, we will get the user object using the email id and pas it on to the
+send_email function which will send a mail to the user.
+Once the email is sent we will show a flash message to the user and redirect him back to the login
+page.
+
+========================================================================================================================
+10. Implementing send_reset_email function to send emails to users.
+
+1. COMMANDS:-
+pipenv install flask-mail
+
+2.COMMANDS:- in it __init__.py file
+from flask_mail import Mail
+
+3. We need to set a few values in the app.config to make this work
+COMMANDS:- in __init__.py file
+
+app.config['MAIL_SERVER'] = 'smtp.googlemail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('EMAIL_USER')
+app.config['MAIL_PASSWORD'] = os.environ.get('EMAIL_PASS')
+mail = Mail(app)
+
+mail username and password are sensitive information, hence we add that to the .env file in the
+project folder and access it using os module.
+
+4. In routes.py file, we import this 'mail' var we created in __init__.py file.
+
+COMMANDS:-
+from flask_mail import Message
+
+def send_reset_email(user):
+    token = user.get_reset_token()
+    msg = Message(subject='Password Reset Request',
+                  sender='noreply@demo.com',
+                  recipients=[user.email])
+    msg.body = f''' To reset your password, visit the following link:
+{url_for('reset_token', token=token, _external=True)}
+
+If you did not make this request, simply ignore this email and no changes will be made.'''
+    mail.send(msg)
+
+    a. given the user, we first get the token using the user.get_reset_token() method.
+
+    b. We import Message class from flask_mail. The object of this class can be considered as email.
+    For instantiating the object, we need to pass sender, subject and recipients. 'reciepients' is a list
+    of email id's.
+
+    c. The body of message can be set using the 'body' attribute of the Message. Here we use a multiline f string.
+    To get the url in the string, we use he url_for function. This url will point to the reset_token route.
+    url_for('reset_token', token=token, _external=True)
+    The '_external' argument gives the exact path instead of relative path.
+
+    d. To send the message we use 'mail.send(msg)'
+
+========================================================================================================================
+
+
+========================================================================================================================
+
+
+========================================================================================================================
+
+
+========================================================================================================================
+
+
+========================================================================================================================
+
+
+========================================================================================================================
+
+
+========================================================================================================================
